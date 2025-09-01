@@ -1,0 +1,14 @@
+{
+    "name": "whiteboard-monorepo",
+    "private": true,
+    "workspaces": ["web", "api"],
+    "scripts": {
+      "dev": "concurrently \"pnpm -C api dev\" \"pnpm -C web dev\"",
+      "build": "pnpm -C api build && pnpm -C web build",
+      "typecheck": "pnpm -C api typecheck && pnpm -C web typecheck",
+      "start": "concurrently \"pnpm -C api start\" \"pnpm -C web start\""
+    },
+    "devDependencies": {
+      "concurrently": "^8.2.2"
+    }
+  }

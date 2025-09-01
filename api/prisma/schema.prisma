@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  password    String
+  createdAt   DateTime     @default(now())
+  ownedBoards Board[]      @relation("BoardOwner")
+  memberships Membership[]
+  assets      Asset[]
+
+  @@map("users")
+}
+
+model Board {
+  id          String       @id @default(cuid())
+  title       String
+  ownerId     String
+  snapshot    Bytes?
+  snapshotAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  owner       User         @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  shareLinks  ShareLink[]
+  events      BoardEvent[]
+  pages       BoardPage[]
+
+  @@map("boards")
+}
+
+enum MembershipRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model Membership {
+  id      String         @id @default(cuid())
+  userId  String
+  boardId String
+  role    MembershipRole
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board   Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@map("memberships")
+}
+
+model ShareLink {
+  id        String   @id @default(cuid())
+  boardId   String
+  token     String   @unique
+  canEdit   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@map("share_links")
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  ownerId   String
+  kind      String   // 'pdf' | 'image'
+  url       String   // storage or external URL
+  pageCount Int?
+  createdAt DateTime @default(now())
+
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  boardPages BoardPage[]
+
+  @@map("assets")
+}
+
+model BoardPage {
+  id        String   @id @default(cuid())
+  boardId   String
+  title     String   @default("Page 1")
+  index     Int
+  width     Int      @default(794)   // A4 portrait ~96dpi
+  height    Int      @default(1123)
+
+  backgroundType String   @default("blank") // 'blank' | 'grid' | 'pdf' | 'image'
+  gridType       String?  // 'square' | 'dot'
+  gridSize       Int?
+  showAxes       Boolean  @default(false)
+  assetId        String?
+  pdfPage        Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board  Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  asset  Asset?      @relation(fields: [assetId], references: [id])
+  events BoardEvent[]
+
+  @@index([boardId, index])
+  @@map("board_pages")
+}
+
+model BoardEvent {
+  id        String   @id @default(cuid())
+  boardId   String
+  pageId    String?  // NEW: page-scoped events
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  board Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  page  BoardPage? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, pageId, createdAt])
+  @@map("board_events")
+}
